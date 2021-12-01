@@ -26,6 +26,8 @@ type Guess struct {
 	GuessNumber int64  `json:"guess_number"`
 }
 
+var currentToken string
+
 var ourUser = User{Username: "testuser", Password: "1234"}
 
 var router = gin.Default()
@@ -64,6 +66,60 @@ func VerifyToken(request *http.Request) (*jwt.Token, error) {
 	return token, nil
 }
 
+func TokenValid(request *http.Request) error {
+	token, err := VerifyToken(request)
+
+	if err != nil {
+		return err
+	}
+
+	// _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid
+	if !token.Valid {
+		return err
+	}
+
+	return nil
+}
+
+func getTokenData(request *http.Request) (string, error) {
+	token, err := VerifyToken(request)
+	if err != nil {
+		return "", err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if ok && token.Valid {
+		username, ok := claims["username"].(string)
+		if !ok {
+			return "", err
+		}
+
+		return username, nil
+	}
+	return "", err
+}
+
+func DoGuess(context *gin.Context) {
+	var thisGuess *Guess
+
+	if err := context.ShouldBindJSON(&thisGuess); err != nil {
+		context.JSON(http.StatusUnprocessableEntity, "invalid json")
+		return
+	}
+
+	username, err := getTokenData(context.Request)
+	if err != nil {
+		context.JSON(http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	thisGuess.Username = username
+	thisGuess.GuessNumber = 3
+
+	context.JSON(http.StatusOK, thisGuess)
+}
+
 func Login(context *gin.Context) {
 	var requestUser User
 
@@ -77,22 +133,25 @@ func Login(context *gin.Context) {
 		return
 	}
 
-	token, err := CreateToken()
+	token, err := CreateToken(requestUser.Username)
+
+	currentToken = token
 
 	if err != nil {
 		context.JSON(http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	context.JSON(http.StatusOK, token)
+	context.JSON(http.StatusOK, currentToken)
 }
 
-func CreateToken() (string, error) {
+func CreateToken(username string) (string, error) {
 	var err error
 	// Access Token
 	os.Setenv("SECRET", "iwtptits")
 	tokenClaims := jwt.MapClaims{}
 	tokenClaims["authorized"] = true
+	tokenClaims["username"] = username
 	tokenClaims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 	thisToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 
@@ -107,5 +166,7 @@ func CreateToken() (string, error) {
 
 func main() {
 	router.POST("/login", Login)
+	router.POST("/guess", DoGuess)
+
 	log.Fatal(router.Run(":4242"))
 }
