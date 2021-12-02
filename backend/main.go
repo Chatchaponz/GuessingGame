@@ -7,8 +7,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,18 +19,20 @@ import (
 )
 
 type User struct {
+	ID       uint64 `json:"user_id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type Guess struct {
-	Username    string `json:"username"`
+	ID          uint64 `json:"user_id"`
 	GuessNumber int64  `json:"guess_number"`
 }
 
-var currentToken string
+// var currentToken string
+var hiddenNumber = rand.Int63n(101) // 0 <= n < 100
 
-var ourUser = User{Username: "testuser", Password: "1234"}
+var ourUser = User{ID: 1, Username: "testuser", Password: "1234"}
 
 var router = gin.Default()
 
@@ -81,23 +85,24 @@ func TokenValid(request *http.Request) error {
 	return nil
 }
 
-func getTokenData(request *http.Request) (string, error) {
+func getTokenData(request *http.Request) (uint64, error) {
 	token, err := VerifyToken(request)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 
 	if ok && token.Valid {
-		username, ok := claims["username"].(string)
-		if !ok {
-			return "", err
+		user_id, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
+
+		if err != nil {
+			return 0, err
 		}
 
-		return username, nil
+		return user_id, nil
 	}
-	return "", err
+	return 0, err
 }
 
 func DoGuess(context *gin.Context) {
@@ -108,16 +113,30 @@ func DoGuess(context *gin.Context) {
 		return
 	}
 
-	username, err := getTokenData(context.Request)
+	user_id, err := getTokenData(context.Request)
 	if err != nil {
-		context.JSON(http.StatusUnauthorized, "unauthorized")
+		context.JSON(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	thisGuess.Username = username
-	thisGuess.GuessNumber = 3
+	// compare id in token with id of requested guess and id of our user
+	if user_id != thisGuess.ID || user_id != ourUser.ID {
+		context.JSON(http.StatusUnauthorized, "ID doesn't match")
+		return
+	}
 
-	context.JSON(http.StatusOK, thisGuess)
+	var result string
+
+	if thisGuess.GuessNumber < hiddenNumber {
+		result = "Too low"
+	} else if thisGuess.GuessNumber > hiddenNumber {
+		result = "Too high"
+	} else {
+		result = "Correct"
+		hiddenNumber = rand.Int63n(101) // random new number
+	}
+
+	context.JSON(http.StatusOK, result)
 }
 
 func Login(context *gin.Context) {
@@ -128,30 +147,31 @@ func Login(context *gin.Context) {
 		return
 	}
 
+	// compare requested user with our user
 	if ourUser.Username != requestUser.Username || ourUser.Password != requestUser.Password {
 		context.JSON(http.StatusUnauthorized, "Please provide valid details")
 		return
 	}
 
-	token, err := CreateToken(requestUser.Username)
+	token, err := CreateToken(ourUser.ID)
 
-	currentToken = token
+	//currentToken = token
 
 	if err != nil {
 		context.JSON(http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	context.JSON(http.StatusOK, currentToken)
+	context.JSON(http.StatusOK, token)
 }
 
-func CreateToken(username string) (string, error) {
+func CreateToken(userID uint64) (string, error) {
 	var err error
 	// Access Token
 	os.Setenv("SECRET", "iwtptits")
 	tokenClaims := jwt.MapClaims{}
 	tokenClaims["authorized"] = true
-	tokenClaims["username"] = username
+	tokenClaims["user_id"] = userID
 	tokenClaims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 	thisToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 
