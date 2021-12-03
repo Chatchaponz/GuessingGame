@@ -140,7 +140,7 @@ func DoGuess(context *gin.Context) {
 	}
 
 	var result string
-	status := http.StatusOK
+	status := http.StatusOK // http 200
 
 	if thisGuess.GuessNumber < hiddenNumber {
 		result = "Too low"
