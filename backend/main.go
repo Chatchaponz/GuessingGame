@@ -135,7 +135,7 @@ func DoGuess(context *gin.Context) {
 
 	// compare id in token with id of requested guess and id of our user
 	if user_id != thisGuess.ID || user_id != ourUser.ID {
-		context.JSON(http.StatusUnauthorized, "ID doesn't match")
+		context.JSON(http.StatusUnauthorized, "Unauthorized - ID doesn't match")
 		return
 	}
 
