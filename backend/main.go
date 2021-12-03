@@ -30,7 +30,7 @@ type Guess struct {
 }
 
 // var currentToken string
-var hiddenNumber = rand.Int63n(101) // 0 <= n < 100
+var hiddenNumber int64
 
 var ourUser = User{ID: 1, Username: "testuser", Password: "1234"}
 
@@ -40,11 +40,11 @@ var router = gin.Default()
 func ExtractToken(request *http.Request) string {
 	bearToken := request.Header.Get("Authorization")
 
-	fmt.Println(bearToken) // test print
+	//fmt.Println(bearToken) // test print
 
 	strArr := strings.Split(bearToken, " ")
 
-	fmt.Println(strArr) // test print
+	//fmt.Println(strArr) // test print
 
 	if len(strArr) == 2 {
 		return strArr[1]
@@ -105,6 +105,20 @@ func getTokenData(request *http.Request) (uint64, error) {
 	return 0, err
 }
 
+// Middleware for authentication token
+func tokenMiddleware() gin.HandlerFunc {
+	return func(context *gin.Context) {
+		err := TokenValid(context.Request)
+		if err != nil {
+			context.JSON(http.StatusUnauthorized, err.Error())
+			context.Abort()
+			return
+		}
+
+		context.Next()
+	}
+}
+
 func DoGuess(context *gin.Context) {
 	var thisGuess *Guess
 
@@ -126,6 +140,7 @@ func DoGuess(context *gin.Context) {
 	}
 
 	var result string
+	status := http.StatusOK
 
 	if thisGuess.GuessNumber < hiddenNumber {
 		result = "Too low"
@@ -134,9 +149,10 @@ func DoGuess(context *gin.Context) {
 	} else {
 		result = "Correct"
 		hiddenNumber = rand.Int63n(101) // random new number
+		status = http.StatusCreated     // http 201
 	}
 
-	context.JSON(http.StatusOK, result)
+	context.JSON(status, result)
 }
 
 func Login(context *gin.Context) {
@@ -172,7 +188,7 @@ func CreateToken(userID uint64) (string, error) {
 	tokenClaims := jwt.MapClaims{}
 	tokenClaims["authorized"] = true
 	tokenClaims["user_id"] = userID
-	tokenClaims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	tokenClaims["exp"] = time.Now().Add(time.Minute * 30).Unix() // time.Now().Add(time.Hour * 24).Unix()
 	thisToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 
 	token, err := thisToken.SignedString([]byte(os.Getenv("SECRET")))
@@ -185,8 +201,11 @@ func CreateToken(userID uint64) (string, error) {
 }
 
 func main() {
-	router.POST("/login", Login)
-	router.POST("/guess", DoGuess)
+	rand.Seed(time.Now().UnixNano())
+	hiddenNumber = rand.Int63n(101) // 0 <= n < 100
 
-	log.Fatal(router.Run(":4242"))
+	router.POST("/login", Login)
+	router.POST("/guess", tokenMiddleware(), DoGuess)
+
+	log.Fatal(router.Run(":8080"))
 }
