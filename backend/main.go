@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,12 +26,12 @@ type User struct {
 }
 
 type Guess struct {
-	ID          uint64 `json:"user_id"`
-	GuessNumber int64  `json:"guess_number"`
+	GuessNumber int64 `json:"guess_number"`
 }
 
-// var currentToken string
 var hiddenNumber int64
+
+var min, max = int64(0), int64(100)
 
 var ourUser = User{ID: 1, Username: "testuser", Password: "1234"}
 
@@ -40,11 +41,7 @@ var router = gin.Default()
 func ExtractToken(request *http.Request) string {
 	bearToken := request.Header.Get("Authorization")
 
-	//fmt.Println(bearToken) // test print
-
 	strArr := strings.Split(bearToken, " ")
-
-	//fmt.Println(strArr) // test print
 
 	if len(strArr) == 2 {
 		return strArr[1]
@@ -77,7 +74,6 @@ func TokenValid(request *http.Request) error {
 		return err
 	}
 
-	// _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid
 	if !token.Valid {
 		return err
 	}
@@ -119,6 +115,19 @@ func tokenMiddleware() gin.HandlerFunc {
 	}
 }
 
+// double check token
+func checkToken(context *gin.Context) {
+
+	err := TokenValid(context.Request)
+
+	if err != nil {
+		context.JSON(http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	context.JSON(http.StatusOK, gin.H{"status": true})
+}
+
 func DoGuess(context *gin.Context) {
 	var thisGuess *Guess
 
@@ -133,26 +142,38 @@ func DoGuess(context *gin.Context) {
 		return
 	}
 
-	// compare id in token with id of requested guess and id of our user
-	if user_id != thisGuess.ID || user_id != ourUser.ID {
+	// compare id in token with id of our user
+	if user_id != ourUser.ID {
 		context.JSON(http.StatusUnauthorized, "Unauthorized - ID doesn't match")
 		return
 	}
 
+	if thisGuess.GuessNumber < min {
+		thisGuess.GuessNumber = min
+	}
+
+	if thisGuess.GuessNumber > max {
+		thisGuess.GuessNumber = max
+	}
+
 	var result string
+	var resultStatus bool
 	status := http.StatusOK // http 200
 
 	if thisGuess.GuessNumber < hiddenNumber {
-		result = "Too low"
+		result = "too low"
+		resultStatus = false
 	} else if thisGuess.GuessNumber > hiddenNumber {
-		result = "Too high"
+		result = "too high"
+		resultStatus = false
 	} else {
-		result = "Correct"
+		result = "correct!!!"
+		resultStatus = true
 		hiddenNumber = rand.Int63n(101) // random new number
 		status = http.StatusCreated     // http 201
 	}
 
-	context.JSON(status, result)
+	context.JSON(status, gin.H{"result": result, "status": resultStatus})
 }
 
 func Login(context *gin.Context) {
@@ -163,15 +184,13 @@ func Login(context *gin.Context) {
 		return
 	}
 
-	// compare requested user with our user
+	// Compare requested user with our user
 	if ourUser.Username != requestUser.Username || ourUser.Password != requestUser.Password {
 		context.JSON(http.StatusUnauthorized, "Please provide valid details")
 		return
 	}
 
 	token, err := CreateToken(ourUser.ID)
-
-	//currentToken = token
 
 	if err != nil {
 		context.JSON(http.StatusUnprocessableEntity, err.Error())
@@ -188,7 +207,7 @@ func CreateToken(userID uint64) (string, error) {
 	tokenClaims := jwt.MapClaims{}
 	tokenClaims["authorized"] = true
 	tokenClaims["user_id"] = userID
-	tokenClaims["exp"] = time.Now().Add(time.Minute * 30).Unix() // time.Now().Add(time.Hour * 24).Unix()
+	tokenClaims["exp"] = time.Now().Add(time.Minute * 1).Unix() // exp
 	thisToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 
 	token, err := thisToken.SignedString([]byte(os.Getenv("SECRET")))
@@ -202,10 +221,23 @@ func CreateToken(userID uint64) (string, error) {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	hiddenNumber = rand.Int63n(101) // 0 <= n < 100
+	hiddenNumber = rand.Int63n(101) // 0 <= n < 101
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"POST"},
+		AllowHeaders:     []string{"Login", "Guess", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "http://localhost:3000"
+		},
+		MaxAge: 12 * time.Hour,
+	}))
 
 	router.POST("/login", Login)
 	router.POST("/guess", tokenMiddleware(), DoGuess)
+	router.GET("/check_token", tokenMiddleware(), checkToken)
 
 	log.Fatal(router.Run(":8080"))
 }
