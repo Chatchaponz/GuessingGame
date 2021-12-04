@@ -208,7 +208,7 @@ func CreateToken(userID uint64) (string, error) {
 	tokenClaims := jwt.MapClaims{}
 	tokenClaims["authorized"] = true
 	tokenClaims["user_id"] = userID
-	tokenClaims["exp"] = time.Now().Add(time.Minute * 1).Unix() // exp
+	tokenClaims["exp"] = time.Now().Add(time.Minute * 20).Unix() // exp
 	thisToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenClaims)
 
 	token, err := thisToken.SignedString([]byte(os.Getenv("SECRET")))
