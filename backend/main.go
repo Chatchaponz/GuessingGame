@@ -2,6 +2,7 @@
 // go mod tidy
 // go get github.com/gin-gonic/gin
 // go get github.com/dgrijalva/jwt-go
+// go get github.com/gin-contrib/cors
 package main
 
 import (
