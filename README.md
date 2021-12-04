@@ -2,14 +2,14 @@
 
 Golang -> backend
 Package that I use
-- go get github.com/gin-gonic/gin       for routing
-- go get github.com/dgrijalva/jwt-go    for JWT token
-- go get github.com/gin-contrib/cors    for CORS config
+- go get github.com/gin-gonic/gin |---------- for routing
+- go get github.com/dgrijalva/jwt-go |------- for JWT token
+- go get github.com/gin-contrib/cors |------- for CORS config
 
 React.js -> frontend
 library that I add in
-- nmp i react-router-dom      for routing
-- npm i axios                 for http request
+- nmp i react-router-dom |------- for routing
+- npm i axios |------------------ for http request
 
 # How to run
 + in folder "backend" run file main.go (go run main.go).
