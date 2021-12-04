@@ -14,6 +14,8 @@ library that I add in
 # How to run
 + in folder "backend" run file main.go (go run main.go).
 + in folder "frontend" run (npm start).
++ "backend" run on "http://localhost:8080"
++ "frontend" run on "http://localhost:3000"
 
 # Game description
 Test User : 
