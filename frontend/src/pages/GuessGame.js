@@ -79,7 +79,7 @@ const GuessGame = () => {
         else if (authToken() === false)
             logout();
         else
-            console.log("somthing worng with authToken in GuessGame")
+            console.log("Something worng with authToken in GuessGame")
 
     }, [authToken, logout]);
 
