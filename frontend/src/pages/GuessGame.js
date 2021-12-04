@@ -40,7 +40,7 @@ const GuessGame = () => {
         event.preventDefault();
         const token = localStorage.getItem('token');
         if (token == null) {
-            alert("Token doesn't exist anymore")
+            alert("Your session is already expired");
             logout();
         }
         else {
