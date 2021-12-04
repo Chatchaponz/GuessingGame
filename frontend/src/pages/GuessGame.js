@@ -106,7 +106,7 @@ const GuessGame = () => {
 
                         <hr />
 
-                        <button className="btn" onClick={logout}>Logout</button>
+                        <button className="btn" onClick={logout}><u>Logout</u></button>
                     </div>
                 </div>
             </form>
