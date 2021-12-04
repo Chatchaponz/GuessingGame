@@ -40,6 +40,7 @@ const GuessGame = () => {
         event.preventDefault();
         const token = localStorage.getItem('token');
         if (token == null) {
+            alert("Token isn't existed")
             logout();
         }
         else {
@@ -75,6 +76,10 @@ const GuessGame = () => {
                 logout();
             });
         }
+        else if (authToken() === false)
+            logout();
+        else
+            console.log("somthing worng with authToken in GuessGame")
 
     }, [authToken, logout]);
 
