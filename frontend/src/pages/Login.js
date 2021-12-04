@@ -35,7 +35,7 @@ const Login = () => {
             console.log(response)
             setLocalToken(response)
         }).catch((error) => {
-            console.log(error);
+            console.error(error);
             setloginStatus("Invalid username or password!")
         });
     }
