@@ -10,6 +10,7 @@ React.js -> frontend
 library that I add in
 - nmp i react-router-dom |------- for routing
 - npm i axios |------------------ for http request
+- Boostrap (CSS link version not the install one) |--- for adjust element
 
 # How to run
 + in folder "backend" run file main.go (go run main.go).
