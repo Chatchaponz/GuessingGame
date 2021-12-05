@@ -56,7 +56,7 @@ const GuessGame = () => {
                 handleGuessResponse(response);
             }).catch((error) => {
                 console.error(error);
-                alert(error)
+                alert("Your session is already expired")
                 logout();
             });
         }
@@ -72,7 +72,7 @@ const GuessGame = () => {
                 console.log(response)
             }).catch((error) => {
                 console.error(error)
-                alert(error)
+                alert("Your session is already expired")
                 logout();
             });
         }
